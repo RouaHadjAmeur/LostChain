@@ -1,0 +1,47 @@
+{
+  "name": "lostchain",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test": "node --test tests/*.test.js",
+    "dev:all": "npm run dev",
+    "dev:chain": "vite --mode chain --host 127.0.0.1 --port 5174 --strictPort",
+    "build:chain": "vite build --mode chain",
+    "chain:node": "npm --prefix blockchain run node",
+    "chain:deploy": "npm --prefix blockchain run deploy:local",
+    "chain:typecheck": "npm --prefix blockchain run typecheck",
+    "chain:test": "npm --prefix blockchain test",
+    "metadata:dev": "node --watch server/chain-index.js",
+    "local:start": "node scripts/start-local.js",
+    "test:integration": "node --test tests/chain.integration.js",
+    "chain:accounts": "node scripts/local-wallets.js",
+    "preview:chain": "vite preview --mode chain --host 127.0.0.1 --port 5174 --strictPort"
+  },
+  "dependencies": {
+    "ethers": "^6.17.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.0.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "hardhat": "^3.21.2",
+    "vite": "^6.0.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "description": "Campus lost and found: browser prototype and optional local Hardhat integration.",
+  "main": "vite.config.js",
+  "directories": {
+    "test": "tests"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
