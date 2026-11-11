@@ -4,7 +4,7 @@ import {readFile} from 'node:fs/promises';
 import {JsonRpcProvider,Wallet,Contract,ContractFactory} from 'ethers';
 import {createChainApp} from '../server/chain-app.js';
 import {createChainRepository} from '../src/services/chain/repository.js';
-const config=JSON.parse(await readFile(new URL('../blockchain/deployments/localhost.json',import.meta.url),'utf8'));
+const config={...JSON.parse(await readFile(new URL('../blockchain/deployments/localhost.json',import.meta.url),'utf8')),...(process.env.INTEGRATION_RPC_URL?{rpcUrl:process.env.INTEGRATION_RPC_URL}:{})};
 const proofPhoto='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=';
 const report={name:'Local test glasses',category:'Accessories',description:'Black glasses in a brown case.',location:'Library',date:'2026-01-01',status:'Found',image:proofPhoto,reporterVisibility:'anonymous'};
 function memory(){const data=new Map();return{getItem:key=>data.get(key)??null,setItem:(key,value)=>data.set(key,value)}}
@@ -18,7 +18,7 @@ async function fixture(){
  const registry=await new ContractFactory(registryArtifact.abi,registryArtifact.bytecode,deployer).deploy(await identity.getAddress());await registry.waitForDeployment();
  const receipt=await registry.deploymentTransaction().wait();
  const fixtureConfig={...config,deploymentId:`integration-${checkpoint}`,deploymentBlock:receipt.blockNumber,identity:{address:await identity.getAddress(),abi:identityArtifact.abi},registry:{address:await registry.getAddress(),abi:registryArtifact.abi}};
- const app=createChainApp({getConfig:async()=>fixtureConfig});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${app.server.address().port}`;
+ const app=createChainApp({getConfig:async()=>fixtureConfig,rpcUrl:config.rpcUrl});await new Promise(resolve=>app.server.listen(0,'127.0.0.1',resolve));const base=`http://127.0.0.1:${app.server.address().port}`;
  async function client(index){const wallet=await provider.getSigner(index),address=(await wallet.getAddress()).toLowerCase();let cookie='';const store=memory();const request=async(path,options={})=>{const headers={...options.headers,...(cookie?{cookie}:{})};const response=await fetch(base+path,{...options,headers});const session=response.headers.get('set-cookie');if(session)cookie=session.split(';')[0];return response};let failAttachments=false;const fetcher=(path,options={})=>{if(failAttachments&&options.method==='PATCH')throw new Error('Simulated metadata outage');return request(path,options)};const repo=createChainRepository({storage:store,fetcher,getSigner:async()=>wallet,getAccount:async()=>address});return {repo,wallet,address,store,request,fetcher,setOutage:value=>failAttachments=value}}
  return {provider,app,base,client,config:fixtureConfig,close:async()=>{await app.close();await provider.send('evm_revert',[checkpoint]);provider.destroy()}};
 }
@@ -27,7 +27,7 @@ test('full integrated identity, private evidence, notifications, cancellation, c
  const alice=await f.client(0),bob=await f.client(1),other=await f.client(2);
  await alice.repo.register({name:'Local Alice',email:'alice@example.tn',role:'Student'});await bob.repo.register({name:'Local Bob',email:'bob@example.tn',role:'Staff'});await other.repo.register({name:'Local Other',email:'other@example.tn',role:'Student'});
  assert.equal((await alice.repo.snapshot()).user.role,'Student');assert.equal((await bob.repo.snapshot()).user.role,'Staff');await assert.rejects(alice.repo.register({name:'Again',email:'again@example.tn',role:'Student'}),/already registered/);
- const item=await alice.repo.createItem(report),lost=await alice.repo.createItem({...report,status:'Lost'});await assert.rejects(bob.repo.createClaim({itemId:lost.id,evidence:'This is my missing item.'}),/found item/);
+ const item=await alice.repo.createItem(report),lost=await alice.repo.createItem({...report,status:'Lost'});
  assert.equal((await bob.repo.snapshot()).newReportIds.length,2);const before=await bob.repo.snapshot();await bob.repo.markNotificationsRead([before.notifications[0].id]);assert.equal((await bob.repo.snapshot()).notifications.filter(n=>!n.read).length,1);
  const claim=await bob.repo.createClaim({itemId:item.id,evidence:'A star sticker is hidden inside the case.',evidencePhoto:proofPhoto});assert.equal((await alice.repo.snapshot()).claims.find(c=>c.id===claim.id).evidencePhoto,proofPhoto);const rawClaim=await new Contract(f.config.registry.address,f.config.registry.abi,f.provider).getClaimDetails(claim.id);assert.match(rawClaim.message,/^proof:0x[0-9a-f]{64}$/);assert.ok(!rawClaim.message.includes('sticker'));const tampered=await bob.request(`/api/chain/claims/${claim.id}`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({evidence:'Tampered ownership text!',evidencePhoto:'',salt:'a'.repeat(32)})});assert.equal(tampered.status,400);assert.equal((await other.repo.snapshot()).claims.length,0);
  const outsiderResponse=await other.request(`/api/chain/claims/${claim.id}/meeting`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({meeting:'Unauthorized change'})});assert.equal(outsiderResponse.status,403);
@@ -59,5 +59,30 @@ test('wallet rejection and full browser storage do not submit an item transactio
 });
 test('wrong network and wallet changes cannot reuse the displayed membership',async()=>{
  const f=await fixture();try{const alice=await f.client(0);await alice.repo.register({name:'Alice',email:'alice@example.tn',role:'Student'});const wrong=createChainRepository({storage:alice.store,fetcher:alice.fetcher,getSigner:async()=>({provider:{getNetwork:async()=>({chainId:1n})}}),getAccount:async()=>alice.address});await assert.rejects(wrong.login(),/configured network/);const switched=createChainRepository({storage:alice.store,fetcher:alice.fetcher,getSigner:async()=>alice.wallet,getAccount:async()=>(await f.provider.getSigner(1)).address});const snapshot=await switched.snapshot();assert.equal(snapshot.user,null);assert.equal(snapshot.claims.length,0);assert.equal(snapshot.notifications.length,0);
+ }finally{await f.close()}
+});
+
+
+test('lost item finder response notifies owner and maps both handover roles correctly',async()=>{
+ const f=await fixture();try{
+ const owner=await f.client(0),finder=await f.client(1);
+ await owner.repo.register({name:'Owner',email:'owner@example.tn',role:'Student'});
+ await finder.repo.register({name:'Finder',email:'finder@example.tn',role:'Staff'});
+ const item=await owner.repo.createItem({...report,status:'Lost'});
+ const response=await finder.repo.createClaim({itemId:item.id,evidence:'Found this near the library desk today.',evidencePhoto:proofPhoto});
+ const notified=await owner.repo.snapshot();
+ assert.equal(notified.items.length,1);
+ assert.ok(notified.notifications.some(n=>n.claimId===response.id&&n.text.includes('found your lost item')));
+ await owner.repo.claimAction(response.id,'accept');
+ await assert.rejects(owner.repo.claimAction(response.id,'handover'),/own side/);
+ await assert.rejects(finder.repo.claimAction(response.id,'receive'),/own side/);
+ await owner.repo.claimAction(response.id,'receive');
+ const partial=(await finder.repo.snapshot()).claims.find(c=>c.id===response.id);
+ assert.ok(partial.receivedAt);assert.equal(partial.handedOverAt,null);
+ await finder.repo.claimAction(response.id,'handover');
+ const state=await owner.repo.snapshot();
+ assert.equal(state.items[0].status,'Returned');
+ assert.equal(state.claims[0].status,'Completed');
+ assert.ok(state.claims[0].receivedAt&&state.claims[0].handedOverAt);
  }finally{await f.close()}
 });

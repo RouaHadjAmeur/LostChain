@@ -88,7 +88,7 @@ test('closing an item cancels pending claims and notifies claimants, surviving r
  repo.logout();await repo.register(account('claimant@campus.edu'));const claim=repo.createClaim({itemId:item.id,evidence});
  repo.logout();await repo.login(account('reporter@campus.edu'));repo.closeItem(item.id);assert.equal(repo.snapshot().claims.find(c=>c.id===claim.id).status,'Cancelled');assert.equal(createPrototypeRepository(disk).snapshot().items.find(i=>i.id===item.id).status,'Closed');
  assert.throws(()=>repo.claimAction(claim.id,'accept'),/cannot be reviewed/);
- repo.logout();await repo.login(account('claimant@campus.edu'));assert.ok(repo.snapshot().notifications.some(n=>n.claimId===claim.id&&n.text.includes('closed by the reporter')));assert.throws(()=>repo.createClaim({itemId:item.id,evidence}),/available found item/);
+ repo.logout();await repo.login(account('claimant@campus.edu'));assert.ok(repo.snapshot().notifications.some(n=>n.claimId===claim.id&&n.text.includes('closed by the reporter')));assert.throws(()=>repo.createClaim({itemId:item.id,evidence}),/available item/);
 });
 test('accepted handovers cannot be cancelled, rejected or closed, including after the first confirmation',async()=>{
  const repo=createPrototypeRepository(storage());await repo.register(account('reporter@campus.edu'));const item=repo.createItem(itemData);repo.logout();await repo.register(account('claimant@campus.edu'));const claim=repo.createClaim({itemId:item.id,evidence});repo.logout();await repo.login(account('reporter@campus.edu'));repo.claimAction(claim.id,'accept');
@@ -157,4 +157,28 @@ test('reading one notification decrements only its recipient count and persists 
 });
 test('read notification selection cannot clear someone else’s notifications or unrelated updates',async()=>{
  const disk=storage(),repo=createPrototypeRepository(disk);const reporter=await repo.register(account('reporter@campus.edu'));const item=repo.createItem(itemData);repo.logout();await repo.register(account('claimant@campus.edu'));repo.createClaim({itemId:item.id,evidence});repo.logout();await repo.login(account('reporter@campus.edu'));const claimNotice=repo.snapshot().notifications.find(n=>n.claimId);repo.logout();await repo.register(account('other@campus.edu'));repo.createItem(itemData);repo.markNotificationsRead([claimNotice.id]);repo.logout();await repo.login(account('reporter@campus.edu'));assert.equal(repo.snapshot().notifications.find(n=>n.id===claimNotice.id).read,false);repo.markNotificationsRead([claimNotice.id]);assert.equal(repo.snapshot().notifications.find(n=>n.id===claimNotice.id).read,true);assert.ok(repo.snapshot().notifications.some(n=>n.kind==='report'&&!n.read));
+});
+
+for(const first of ['receive','handover'])test(`lost report: finder response linked to original, ${first} first`,async()=>{
+ const repo=createPrototypeRepository(storage());
+ const owner=await repo.register(account('owner@campus.edu'));
+ const item=repo.createItem({...itemData,status:'Lost'});
+ assert.throws(()=>repo.createClaim({itemId:item.id,evidence}),/another member/);
+ repo.logout();const finder=await repo.register(account('finder@campus.edu'));
+ const request=repo.createClaim({itemId:item.id,evidence:'Found this bottle under a library desk this morning.'});
+ assert.equal(repo.snapshot().items.length,1);
+ assert.throws(()=>repo.createClaim({itemId:item.id,evidence}),/already submitted/);
+ assert.throws(()=>repo.claimAction(request.id,'accept'),/Only the item reporter/);
+ repo.logout();await repo.login(account('owner@campus.edu'));
+ assert.ok(repo.snapshot().notifications.some(n=>n.claimId===request.id&&n.text.includes('found your lost item')));
+ repo.claimAction(request.id,'accept');
+ assert.throws(()=>repo.claimAction(request.id,'handover'),/Only the finder/);
+ if(first==='handover'){repo.logout();await repo.login(account('finder@campus.edu'))}
+ repo.claimAction(request.id,first);
+ assert.equal(repo.snapshot().items[0].status,'Lost');
+ assert.throws(()=>repo.claimAction(request.id,first),/already been confirmed/);
+ repo.logout();await repo.login(account(first==='receive'?'finder@campus.edu':'owner@campus.edu'));
+ repo.claimAction(request.id,first==='receive'?'handover':'receive');
+ assert.equal(repo.snapshot().items[0].status,'Returned');
+ assert.equal(repo.snapshot().claims[0].status,'Completed');
 });

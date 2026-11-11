@@ -495,3 +495,25 @@ Travailler par branches et annoncer les changements de contrats à l’autre mem
 - [Modèle de variables serveur](.env.example)
 
 Ce README décrit la version locale et sa préparation au déploiement. Les limites et tâches restantes ci-dessus doivent être traitées avant de présenter LostChain comme un service public prêt pour des données réelles.
+
+
+### Répondre directement à une annonce perdue
+
+Sur une annonce **Lost**, un autre membre peut cliquer sur **I found this item**,
+indiquer le lieu et les circonstances, puis joindre une photo facultative.
+Le signalement reste lié à l’annonce initiale et notifie son auteur sans créer
+une deuxième annonce. Le propriétaire accepte ou refuse depuis **Received requests**.
+Après acceptation, le propriétaire confirme la réception et la personne ayant
+trouvé l’objet confirme sa remise. L’objet devient **Returned** après les deux
+confirmations ; les points LCP sont attribués à la personne qui l’a trouvé.
+
+Ce parcours nécessite le contrat qui expose `reportFoundForLost`. Les anciens
+contrats déployés ne peuvent pas être modifiés. `npm run chain:deploy` crée un
+nouveau déploiement local et change le manifeste : les inscriptions, annonces et
+demandes de l’ancien déploiement ne seront plus affichées. Sauvegarder le manifeste
+et convenir d’une remise à zéro des données de test avant cette commande. Aucun
+redéploiement automatique n’est effectué pour activer cette évolution.
+
+Pour tester sans toucher au réseau local utilisé dans MetaMask, démarrer un autre
+nœud Hardhat sur le port 18545, puis lancer depuis la racine :
+`INTEGRATION_RPC_URL=http://127.0.0.1:18545 npm run test:integration`.

@@ -27,6 +27,25 @@ describe("LostItemRegistry", function () {
     return { ethers, identity, registry, reporter, claimant, stranger };
   }
 
+  for (const ownerFirst of [true, false]) it(`links finder response to lost report and rewards finder (owner first: ${ownerFirst})`, async function () {
+    const { registry, reporter, claimant, stranger } = await deployContracts();
+    await registry.connect(reporter).reportLostItem("Phone", "Electronics", "Lost phone", "Library", "");
+    await expect(registry.connect(reporter).reportFoundForLost(1, "Found it")).to.be.revertedWith("Cannot claim own item");
+    await registry.connect(claimant).reportFoundForLost(1, "Found near the library desk");
+    expect(await registry.getItemCount()).to.equal(1n);
+    await expect(registry.connect(claimant).reportFoundForLost(1, "Again")).to.be.revertedWith("Already claimed");
+    await expect(registry.connect(claimant).acceptClaim(1)).to.be.revertedWith("Only reporter can accept");
+    await registry.connect(reporter).acceptClaim(1);
+    await registry.connect(ownerFirst ? reporter : claimant).confirmHandover(1);
+    expect((await registry.getItemDetails(1)).status).to.equal(2n);
+    expect(await registry.balanceOf(claimant.address)).to.equal(0n);
+    await registry.connect(ownerFirst ? claimant : reporter).confirmHandover(1);
+    expect((await registry.getItemDetails(1)).status).to.equal(3n);
+    expect(await registry.balanceOf(claimant.address)).to.equal(await registry.RETURN_REWARD());
+    expect(await registry.balanceOf(reporter.address)).to.equal(0n);
+    await expect(registry.connect(claimant).confirmHandover(1)).to.be.revertedWith("Claim has not been accepted");
+  });
+
   type Fixture = Awaited<ReturnType<typeof deployContracts>>;
 
   async function reportFoundItem(registry: Fixture["registry"], reporter: Fixture["reporter"]) {

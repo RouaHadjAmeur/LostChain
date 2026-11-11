@@ -7,26 +7,29 @@ export function transitionClaim(state, actor, claimId, action, now = new Date().
   if (!claim || !item) throw new Error('This claim is no longer available.');
   const reporter = item.reporter === actor.address;
   const claimant = claim.owner === actor.address;
+  const lost = (item.reportType || item.status) === 'Lost';
+  const receiver = lost ? reporter : claimant;
+  const finder = lost ? claimant : reporter;
   let updated = {...claim, updatedAt: now};
   if (['accept', 'reject'].includes(action)) {
     if (!reporter) throw new Error('Only the item reporter can respond to this claim.');
-    if (claim.status !== 'Pending' || item.status !== 'Found') throw new Error('This claim cannot be reviewed now.');
+    if (claim.status !== 'Pending' || !['Lost','Found'].includes(item.status)) throw new Error('This claim cannot be reviewed now.');
     if (action === 'accept' && state.claims.some(entry => entry.itemId === item.id && entry.status === 'Accepted')) throw new Error('Another claim is already accepted for this item.');
     updated.status = action === 'accept' ? 'Accepted' : 'Rejected';
   } else if (action === 'cancel') {
     if (!claimant) throw new Error('Only the claimant can cancel this claim.');
-    if (claim.status !== 'Pending' || item.status !== 'Found') throw new Error('Only pending claims can be cancelled.');
+    if (claim.status !== 'Pending' || !['Lost','Found'].includes(item.status)) throw new Error('Only pending claims can be cancelled.');
     updated.status = 'Cancelled';
     updated.cancelledAt = now;
     updated.cancelledReason = 'Cancelled by the claimant.';
   } else if (['receive', 'handover'].includes(action)) {
-    if (claim.status !== 'Accepted' || item.status !== 'Found') throw new Error('Accept the claim before confirming the handover.');
+    if (claim.status !== 'Accepted' || !['Lost','Found'].includes(item.status)) throw new Error('Accept the claim before confirming the handover.');
     if (action === 'receive') {
-      if (!claimant) throw new Error('Only the claimant can confirm receiving the item.');
+      if (!receiver) throw new Error(lost ? 'Only the owner can confirm receiving the item.' : 'Only the claimant can confirm receiving the item.');
       if (claim.receivedAt) throw new Error('Receipt has already been confirmed.');
       updated.receivedAt = now;
     } else {
-      if (!reporter) throw new Error('Only the reporter can confirm handing over the item.');
+      if (!finder) throw new Error(lost ? 'Only the finder can confirm handing over the item.' : 'Only the reporter can confirm handing over the item.');
       if (claim.handedOverAt) throw new Error('Handover has already been confirmed.');
       updated.handedOverAt = now;
     }

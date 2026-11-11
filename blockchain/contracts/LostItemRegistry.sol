@@ -204,6 +204,19 @@ contract LostItemRegistry is ERC20 {
         Item storage item = items[itemId];
 
         require(item.itemType == ItemType.Found, "Not a found item");
+        _submitRequest(itemId, message);
+    }
+
+    // A finder responds directly to the owner's existing lost report.
+    function reportFoundForLost(uint256 itemId, string memory message)
+        external onlyRegistered itemExists(itemId)
+    {
+        require(items[itemId].itemType == ItemType.Lost, "Not a lost item");
+        _submitRequest(itemId, message);
+    }
+
+    function _submitRequest(uint256 itemId, string memory message) private {
+        Item storage item = items[itemId];
         require(
             item.status == ItemStatus.Open ||
             item.status == ItemStatus.ClaimPending,
@@ -357,8 +370,9 @@ contract LostItemRegistry is ERC20 {
             item.status = ItemStatus.Returned;
 
             // Mint once, only after both confirmations; Completed prevents replay.
-            _mint(item.reporter, RETURN_REWARD);
-            emit ReturnRewardIssued(item.id, item.reporter, RETURN_REWARD);
+            address finder = item.itemType == ItemType.Lost ? claim.claimant : item.reporter;
+            _mint(finder, RETURN_REWARD);
+            emit ReturnRewardIssued(item.id, finder, RETURN_REWARD);
             emit ItemReturned(item.id, claimId);
         }
     }
