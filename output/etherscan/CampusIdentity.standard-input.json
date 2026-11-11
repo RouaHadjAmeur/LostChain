@@ -1,0 +1,32 @@
+{
+  "language": "Solidity",
+  "settings": {
+    "evmVersion": "osaka",
+    "outputSelection": {
+      "*": {
+        "": [
+          "ast"
+        ],
+        "*": [
+          "abi",
+          "evm.bytecode.linkReferences",
+          "evm.bytecode.object",
+          "evm.bytecode.opcodes",
+          "evm.bytecode.sourceMap",
+          "evm.deployedBytecode.immutableReferences",
+          "evm.deployedBytecode.linkReferences",
+          "evm.deployedBytecode.object",
+          "evm.deployedBytecode.opcodes",
+          "evm.deployedBytecode.sourceMap",
+          "evm.methodIdentifiers"
+        ]
+      }
+    },
+    "remappings": []
+  },
+  "sources": {
+    "project/contracts/CampusIdentity.sol": {
+      "content": "\n// SPDX-License-Identifier: MIT\npragma solidity ^0.8.34;\n\ncontract CampusIdentity {\n\n    // Two profile types, with identical permissions.\n    enum Role {\n        Student,\n        Staff\n    }\n\n    // User profile structure.\n    struct UserProfile {\n        string name;\n        Role role;\n        uint256 registeredAt;\n        bool isRegistered;\n    }\n\n    // Wallet address => user profile.\n    mapping(address => UserProfile) private users;\n\n    // Keep track of registered wallet addresses.\n    address[] private registeredUsers;\n\n    // Events\n    event UserRegistered(\n        address indexed userAddress,\n        string name,\n        Role role\n    );\n\n    event UserProfileUpdated(\n        address indexed userAddress,\n        string newName\n    );\n\n    // Register a new user.\n    function registerUser(\n        string memory _name,\n        Role _role\n    ) external {\n        require(!users[msg.sender].isRegistered, \"Already registered\");\n        require(bytes(_name).length > 0, \"Name cannot be empty\");\n\n        users[msg.sender] = UserProfile({\n            name: _name,\n            role: _role,\n            registeredAt: block.timestamp,\n            isRegistered: true\n        });\n\n        registeredUsers.push(msg.sender);\n\n        emit UserRegistered(msg.sender, _name, _role);\n    }\n\n    // Check whether a wallet address is registered.\n    function isRegistered(\n        address _user\n    ) external view returns (bool) {\n        return users[_user].isRegistered;\n    }\n\n    // Retrieve a user's complete profile.\n    function getUserProfile(\n        address _user\n    ) external view returns (\n        string memory name,\n        Role role,\n        uint256 registeredAt,\n        bool registered\n    ) {\n        require(users[_user].isRegistered, \"User not registered\");\n\n        UserProfile memory user = users[_user];\n\n        return (\n            user.name,\n            user.role,\n            user.registeredAt,\n            user.isRegistered\n        );\n    }\n\n    // Update the user's display name.\n    function updateUserProfile(\n        string memory _newName\n    ) external {\n        require(users[msg.sender].isRegistered, \"User not registered\");\n        require(bytes(_newName).length > 0, \"Name cannot be empty\");\n\n        users[msg.sender].name = _newName;\n\n        emit UserProfileUpdated(msg.sender, _newName);\n    }\n\n    // Get the total number of registered users.\n    function getUserCount() external view returns (uint256) {\n        return registeredUsers.length;\n    }\n\n    // Get all registered wallet addresses.\n    function getRegisteredUsers() external view returns (address[] memory) {\n        return registeredUsers;\n    }\n}\n"
+    }
+  }
+}

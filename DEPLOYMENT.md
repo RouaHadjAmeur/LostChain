@@ -1,3 +1,10 @@
+# Mise à jour
+
+Le support Sepolia et l’assistant de déploiement MetaMask sont implémentés.
+Suivre [SEPOLIA_SETUP.md](SEPOLIA_SETUP.md), qui remplace les étapes de préparation
+réseau ci-dessous. La publication de l’API/frontend et la recette publique restent
+à réaliser. La liste suivante conserve le contexte de préparation initiale.
+
 # LostChain: preparation for a public test demonstration
 
 ## Current release boundary

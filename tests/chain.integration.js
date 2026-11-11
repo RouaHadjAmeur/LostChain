@@ -36,6 +36,11 @@ test('full integrated identity, private evidence, notifications, cancellation, c
  const cancelItem=await alice.repo.createItem({...report,name:'Cancel test'});const cancelClaim=await bob.repo.createClaim({itemId:cancelItem.id,evidence:'My name is inside this case.'});await bob.repo.claimAction(cancelClaim.id,'cancel');assert.equal((await alice.repo.snapshot()).claims.find(c=>c.id===cancelClaim.id).status,'Cancelled');await alice.repo.closeItem(cancelItem.id);assert.equal((await alice.repo.snapshot()).items.find(i=>i.id===cancelItem.id).status,'Closed');
  const rejectItem=await alice.repo.createItem({...report,name:'Reject test'});const rejected=await bob.repo.createClaim({itemId:rejectItem.id,evidence:'A handwritten label is inside.'});await alice.repo.claimAction(rejected.id,'reject');assert.equal((await bob.repo.snapshot()).claims.find(c=>c.id===rejected.id).status,'Rejected');
  await alice.repo.updateProfile({name:'Updated Alice',email:'alice-new@example.tn',role:'Student'});assert.equal((await alice.repo.snapshot()).user.email,'alice-new@example.tn');assert.equal((await alice.repo.snapshot()).user.name,'Updated Alice');await assert.rejects(alice.repo.updateProfile({name:'Changed',email:'alice-new@example.tn',role:'Staff'}),/changing/);
+ assert.ok((await alice.repo.snapshot()).user.tokens.identityId);
+ assert.equal((await alice.repo.snapshot()).user.tokens.points,'10000000000000000000');
+ await alice.repo.transferPoints(bob.address,'2');
+ assert.equal((await alice.repo.snapshot()).user.tokens.points,'8000000000000000000');
+ assert.equal((await bob.repo.snapshot()).user.tokens.points,'2000000000000000000');
  await bob.repo.logout();assert.equal((await bob.repo.snapshot()).user,null);await bob.repo.login();assert.equal((await bob.repo.snapshot()).claims.find(c=>c.id===claim.id).status,'Completed');
  }finally{await f.close()}
 });
@@ -53,6 +58,6 @@ test('wallet rejection and full browser storage do not submit an item transactio
  }finally{await f.close()}
 });
 test('wrong network and wallet changes cannot reuse the displayed membership',async()=>{
- const f=await fixture();try{const alice=await f.client(0);await alice.repo.register({name:'Alice',email:'alice@example.tn',role:'Student'});const wrong=createChainRepository({storage:alice.store,fetcher:alice.fetcher,getSigner:async()=>({provider:{getNetwork:async()=>({chainId:1n})}}),getAccount:async()=>alice.address});await assert.rejects(wrong.login(),/local network/);const switched=createChainRepository({storage:alice.store,fetcher:alice.fetcher,getSigner:async()=>alice.wallet,getAccount:async()=>(await f.provider.getSigner(1)).address});const snapshot=await switched.snapshot();assert.equal(snapshot.user,null);assert.equal(snapshot.claims.length,0);assert.equal(snapshot.notifications.length,0);
+ const f=await fixture();try{const alice=await f.client(0);await alice.repo.register({name:'Alice',email:'alice@example.tn',role:'Student'});const wrong=createChainRepository({storage:alice.store,fetcher:alice.fetcher,getSigner:async()=>({provider:{getNetwork:async()=>({chainId:1n})}}),getAccount:async()=>alice.address});await assert.rejects(wrong.login(),/configured network/);const switched=createChainRepository({storage:alice.store,fetcher:alice.fetcher,getSigner:async()=>alice.wallet,getAccount:async()=>(await f.provider.getSigner(1)).address});const snapshot=await switched.snapshot();assert.equal(snapshot.user,null);assert.equal(snapshot.claims.length,0);assert.equal(snapshot.notifications.length,0);
  }finally{await f.close()}
 });

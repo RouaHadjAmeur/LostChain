@@ -1,0 +1,29 @@
+{
+  "chainId": 11155111,
+  "contracts": [
+    {
+      "name": "CampusIdentity",
+      "address": "0xC9C143a2Ad6CFB72e41da14c5Cd20CdC11f42dE7",
+      "compiler": "v0.8.34+commit.80d5c536",
+      "evmVersion": "osaka",
+      "optimizer": {
+        "enabled": false
+      },
+      "contract": "project/contracts/CampusIdentity.sol:CampusIdentity",
+      "constructorArguments": "",
+      "url": "https://sepolia.etherscan.io/address/0xC9C143a2Ad6CFB72e41da14c5Cd20CdC11f42dE7#code"
+    },
+    {
+      "name": "LostItemRegistry",
+      "address": "0xD2192DaCBc7aC9449A0Aaedf4207F478ce78149E",
+      "compiler": "v0.8.34+commit.80d5c536",
+      "evmVersion": "osaka",
+      "optimizer": {
+        "enabled": false
+      },
+      "contract": "project/contracts/LostItemRegistry.sol:LostItemRegistry",
+      "constructorArguments": "000000000000000000000000c9c143a2ad6cfb72e41da14c5cd20cdc11f42de7",
+      "url": "https://sepolia.etherscan.io/address/0xD2192DaCBc7aC9449A0Aaedf4207F478ce78149E#code"
+    }
+  ]
+}

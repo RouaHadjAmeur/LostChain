@@ -14,7 +14,7 @@ try{
  let chainId;try{chainId=await rpc('eth_chainId')}catch{}
  if(!chainId){console.log('Starting local Hardhat network (31337)…');const node=start(['node_modules/hardhat/dist/src/cli.js','node','--hostname','127.0.0.1'],{cwd:chain,quiet:true});for(let i=0;i<60;i++){if(node.exitCode!==null)throw new Error('Hardhat could not start on 127.0.0.1:8545.');try{chainId=await rpc('eth_chainId');break}catch{await new Promise(resolve=>setTimeout(resolve,500))}}}
  if(Number(chainId)!==31337)throw new Error('Port 8545 is not a local Hardhat chain (31337). Stop the conflicting service first.');
- let deployed=false;try{const config=JSON.parse(await readFile(new URL('../blockchain/deployments/localhost.json',import.meta.url),'utf8'));deployed=(await rpc('eth_getCode',[config.identity.address,'latest']))!=='0x'&&(await rpc('eth_getCode',[config.registry.address,'latest']))!=='0x'}catch{}
+ let deployed=false;try{const config=JSON.parse(await readFile(new URL('../blockchain/deployments/localhost.json',import.meta.url),'utf8'));deployed=config.tokenVersion===1&&(await rpc('eth_getCode',[config.identity.address,'latest']))!=='0x'&&(await rpc('eth_getCode',[config.registry.address,'latest']))!=='0x'}catch{}
  if(!deployed)await finished(start(['node_modules/hardhat/dist/src/cli.js','run','scripts/deploy-local.ts','--network','localhost'],{cwd:chain}));else console.log('Reusing the existing local deployment.');
  const config=JSON.parse(await readFile(new URL('../blockchain/deployments/localhost.json',import.meta.url),'utf8'));
  const apiUrl='http://127.0.0.1:3002/api/chain/config';

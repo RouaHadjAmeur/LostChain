@@ -1,11 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
 interface ICampusIdentity {
     function isRegistered(address user) external view returns (bool);
 }
 
-contract LostItemRegistry {
+contract LostItemRegistry is ERC20 {
+    uint256 public constant RETURN_REWARD = 10 * 10 ** 18;
+    event ReturnRewardIssued(uint256 indexed itemId, address indexed reporter, uint256 amount);
 
     ICampusIdentity public campusIdentity;
 
@@ -113,7 +117,7 @@ contract LostItemRegistry {
         _;
     }
 
-    constructor(address identityAddress) {
+    constructor(address identityAddress) ERC20("LostChain Points", "LCP") {
         require(identityAddress != address(0), "Invalid identity address");
         require(identityAddress.code.length > 0, "Address is not a contract");
 
@@ -352,6 +356,9 @@ contract LostItemRegistry {
             claim.status = ClaimStatus.Completed;
             item.status = ItemStatus.Returned;
 
+            // Mint once, only after both confirmations; Completed prevents replay.
+            _mint(item.reporter, RETURN_REWARD);
+            emit ReturnRewardIssued(item.id, item.reporter, RETURN_REWARD);
             emit ItemReturned(item.id, claimId);
         }
     }

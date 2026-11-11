@@ -14,3 +14,7 @@ blockchain/cache/
 blockchain/types/
 blockchain/deployments/
 *.log
+!.env.sepolia
+
+# Generated document/build previews
+tmp/

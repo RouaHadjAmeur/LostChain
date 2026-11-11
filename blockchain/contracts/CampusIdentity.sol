@@ -2,7 +2,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.34;
 
-contract CampusIdentity {
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+
+contract CampusIdentity is ERC721 {
+    mapping(address => uint256) public memberTokenId;
+
+    constructor() ERC721("LostChain Campus Identity", "LCID") {}
+
+    // Membership belongs to this wallet; it cannot be sold or transferred.
+    function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
+        require(_ownerOf(tokenId) == address(0), "Identity is non-transferable");
+        return super._update(to, tokenId, auth);
+    }
+
 
     // Two profile types, with identical permissions.
     enum Role {
@@ -52,6 +64,9 @@ contract CampusIdentity {
         });
 
         registeredUsers.push(msg.sender);
+        uint256 tokenId = registeredUsers.length;
+        memberTokenId[msg.sender] = tokenId;
+        _safeMint(msg.sender, tokenId);
 
         emit UserRegistered(msg.sender, _name, _role);
     }

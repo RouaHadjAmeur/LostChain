@@ -82,7 +82,7 @@ npm run build:chain         # chain-mode build
 npm run preview:chain       # preview that build after stopping dev:chain
 ```
 
-Integration tests use temporary metadata databases, local unlocked test signers, and EVM snapshots/reverts. They cover membership, claim lifecycle, private proof access and commitment validation, read notifications, closure, profile edits, signature replay, origin checks and metadata-upload retries without duplicate transactions. There are 31 frontend tests, 26 contract tests and 5 integrated tests. Browser wallet confirmation still needs manual verification with your configured MetaMask accounts.
+Integration tests use temporary metadata databases, local unlocked test signers, and EVM snapshots/reverts. They cover membership, claim lifecycle, private proof access and commitment validation, read notifications, closure, profile edits, signature replay, origin checks and metadata-upload retries without duplicate transactions. There are 34 frontend tests, 26 contract tests and 5 integrated tests. Browser wallet confirmation still needs manual verification with your configured MetaMask accounts.
 
 Alternative separate terminals: `npm run chain:node`, `npm run chain:deploy` once, `npm run metadata:dev`, `npm run dev:chain`. The defaults are 8545 (RPC), 3002 (metadata API), and 5174 (frontend). When changing the frontend origin set `APP_ORIGIN` for the metadata service. API configuration uses exported environment variables, not automatic `.env` loading. `CHAIN_DATABASE_PATH` and `CHAIN_API_PORT` configure its database and listening port; the Vite proxy must match if the API port changes.
 
@@ -95,3 +95,5 @@ This is a complete **local integration**, not a production security review. Emai
 The startup command checks the metadata API and frontend before launching them. Healthy LostChain instances on ports 3002/5174 are reused, so running the command again does not create duplicate services or reset the deployment. If all services already exist, the command prints their URLs and exits normally; keep the original owning terminals running. An unrelated or unresponsive service on either port produces a clear conflict message and is never killed automatically.
 
 Public testnet preparation and remaining hosting work are documented in [DEPLOYMENT.md](DEPLOYMENT.md). No public network is connected yet.
+
+Le nouveau mode Sepolia est décrit dans [SEPOLIA_SETUP.md](SEPOLIA_SETUP.md) ; le mode Hardhat reste inchangé.

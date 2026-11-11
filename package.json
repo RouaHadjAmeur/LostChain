@@ -19,7 +19,11 @@
     "local:start": "node scripts/start-local.js",
     "test:integration": "node --test tests/chain.integration.js",
     "chain:accounts": "node scripts/local-wallets.js",
-    "preview:chain": "vite preview --mode chain --host 127.0.0.1 --port 5174 --strictPort"
+    "preview:chain": "vite preview --mode chain --host 127.0.0.1 --port 5174 --strictPort",
+    "sepolia:prepare": "node scripts/start-sepolia.js --prepare",
+    "sepolia:start": "node scripts/start-sepolia.js",
+    "build:sepolia": "vite build --mode sepolia",
+    "etherscan:prepare": "node scripts/prepare-verification.js"
   },
   "dependencies": {
     "ethers": "^6.17.0",
